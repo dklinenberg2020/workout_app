@@ -3,6 +3,7 @@ import Log from "./pages/Log";
 import History from "./pages/History";
 import Progress from "./pages/Progress";
 import Exercises from "./pages/Exercises";
+import Report from "./pages/Report";
 
 export default function App() {
   return (
@@ -13,9 +14,10 @@ export default function App() {
           <Route path="/history" element={<History />} />
           <Route path="/progress" element={<Progress />} />
           <Route path="/exercises" element={<Exercises />} />
+          <Route path="/report" element={<Report />} />
         </Routes>
       </main>
-      <nav className="tabbar">
+      <nav className="tabbar no-print">
         <NavLink to="/" end className={({ isActive }) => (isActive ? "active" : "")}>
           Log
         </NavLink>
@@ -27,6 +29,9 @@ export default function App() {
         </NavLink>
         <NavLink to="/exercises" className={({ isActive }) => (isActive ? "active" : "")}>
           Exercises
+        </NavLink>
+        <NavLink to="/report" className={({ isActive }) => (isActive ? "active" : "")}>
+          Report
         </NavLink>
       </nav>
     </>

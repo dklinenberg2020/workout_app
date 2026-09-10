@@ -206,3 +206,103 @@ nav.tabbar a.active {
   text-align: center;
   padding: 32px 16px;
 }
+
+.sparkline-labels {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  margin-top: 2px;
+}
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.stat-label {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+}
+
+.stat-value {
+  font-size: 1.15rem;
+  font-weight: 600;
+}
+
+.stat-hint {
+  font-size: 0.72rem;
+  color: var(--text-dim);
+}
+
+.report-header {
+  margin-bottom: 4px;
+}
+
+.report-title {
+  font-size: 1.3rem;
+  margin: 0 0 4px;
+}
+
+.report-section h2 {
+  margin-top: 0;
+}
+
+.report-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 12px;
+  font-size: 0.85rem;
+}
+
+.report-table th,
+.report-table td {
+  text-align: left;
+  padding: 5px 6px;
+  border-bottom: 1px solid var(--border);
+}
+
+.trainer-notes .note-line {
+  border-bottom: 1px solid var(--border);
+  height: 26px;
+}
+
+/* Printable trainer report: force a light, paper-friendly palette regardless
+   of the app's dark UI (every component reads these same variables), and
+   hide interactive chrome. */
+@media print {
+  :root {
+    --bg: #fff;
+    --surface: #fff;
+    --surface-2: #f4f4f4;
+    --border: #ccc;
+    --text: #111;
+    --text-dim: #555;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  main {
+    max-width: none;
+    padding: 0;
+  }
+
+  .card {
+    box-shadow: none;
+  }
+
+  .report-section {
+    break-inside: avoid;
+  }
+}
