@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db, estimate1RM } from "../db";
 import { formatDate } from "../utils";
+import Sparkline from "../components/Sparkline";
 
 export default function Progress() {
   const liftExercises = useLiveQuery(() =>
@@ -67,7 +68,11 @@ export default function Progress() {
       {points && points.length > 0 && (
         <>
           <div className="card">
-            <Sparkline values={points.map((p) => p.est1RM)} />
+            <Sparkline
+              points={points.map((p) => ({ date: p.date, value: p.est1RM }))}
+              formatDate={formatDate}
+              formatValue={(v) => `${v} lb`}
+            />
             <p className="muted" style={{ textAlign: "center", marginTop: 6 }}>
               Estimated 1-rep max over time
             </p>
@@ -87,31 +92,5 @@ export default function Progress() {
         </>
       )}
     </>
-  );
-}
-
-function Sparkline({ values }: { values: number[] }) {
-  const width = 300;
-  const height = 80;
-  const pad = 8;
-  const min = Math.min(...values);
-  const max = Math.max(...values);
-  const range = max - min || 1;
-
-  const points = values.map((v, i) => {
-    const x = values.length === 1 ? width / 2 : pad + (i / (values.length - 1)) * (width - pad * 2);
-    const y = height - pad - ((v - min) / range) * (height - pad * 2);
-    return [x, y] as const;
-  });
-
-  const path = points.map(([x, y], i) => `${i === 0 ? "M" : "L"}${x},${y}`).join(" ");
-
-  return (
-    <svg viewBox={`0 0 ${width} ${height}`} width="100%" height={height}>
-      <path d={path} fill="none" stroke="#4f9dff" strokeWidth={2} />
-      {points.map(([x, y], i) => (
-        <circle key={i} cx={x} cy={y} r={3} fill="#3ddc97" />
-      ))}
-    </svg>
   );
 }
