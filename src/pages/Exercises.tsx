@@ -1,31 +1,47 @@
 import { useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "../db";
-import type { ExerciseType } from "../types";
+import type { Exercise, ExerciseType } from "../types";
 
 export default function Exercises() {
   const exercises = useLiveQuery(() => db.exercises.toArray());
   const [name, setName] = useState("");
   const [type, setType] = useState<ExerciseType>("strength");
   const [error, setError] = useState("");
+  const [editingId, setEditingId] = useState<number | null>(null);
 
   const lifts = exercises?.filter((e) => e.type === "strength") ?? [];
   const cardio = exercises?.filter((e) => e.type === "cardio") ?? [];
+
+  function isDuplicate(trimmed: string, excludeId?: number) {
+    return exercises?.some(
+      (ex) => ex.id !== excludeId && ex.name.toLowerCase() === trimmed.toLowerCase(),
+    );
+  }
 
   async function addExercise(e: React.FormEvent) {
     e.preventDefault();
     setError("");
     const trimmed = name.trim();
     if (!trimmed) return;
-    const dup = exercises?.some(
-      (ex) => ex.name.toLowerCase() === trimmed.toLowerCase(),
-    );
-    if (dup) {
+    if (isDuplicate(trimmed)) {
       setError("An exercise with that name already exists.");
       return;
     }
     await db.exercises.add({ name: trimmed, type, isCoreLift: false });
     setName("");
+  }
+
+  async function renameExercise(id: number, newName: string) {
+    setError("");
+    const trimmed = newName.trim();
+    if (!trimmed) return;
+    if (isDuplicate(trimmed, id)) {
+      setError("An exercise with that name already exists.");
+      return;
+    }
+    await db.exercises.update(id, { name: trimmed });
+    setEditingId(null);
   }
 
   async function removeExercise(id?: number) {
@@ -49,7 +65,7 @@ export default function Exercises() {
           <input
             id="name"
             type="text"
-            placeholder="e.g. Incline Dumbbell Press"
+            placeholder="e.g. Front Squat"
             value={name}
             onChange={(e) => setName(e.target.value)}
           />
@@ -83,31 +99,102 @@ export default function Exercises() {
       <h2>Lifts</h2>
       <div className="card">
         {lifts.map((ex) => (
-          <div className="entry-row" key={ex.id}>
-            <span>
-              {ex.name}
-              {ex.isCoreLift && <span className="tag">core</span>}
-            </span>
-            {!ex.isCoreLift && (
-              <button className="danger" onClick={() => removeExercise(ex.id)}>
-                Remove
-              </button>
-            )}
-          </div>
+          <ExerciseRow
+            key={ex.id}
+            exercise={ex}
+            editing={editingId === ex.id}
+            onStartEdit={() => setEditingId(ex.id!)}
+            onCancelEdit={() => setEditingId(null)}
+            onRename={(newName) => renameExercise(ex.id!, newName)}
+            onRemove={() => removeExercise(ex.id)}
+          />
         ))}
       </div>
 
       <h2>HIIT / Cardio</h2>
       <div className="card">
         {cardio.map((ex) => (
-          <div className="entry-row" key={ex.id}>
-            <span>{ex.name}</span>
-            <button className="danger" onClick={() => removeExercise(ex.id)}>
-              Remove
-            </button>
-          </div>
+          <ExerciseRow
+            key={ex.id}
+            exercise={ex}
+            editing={editingId === ex.id}
+            onStartEdit={() => setEditingId(ex.id!)}
+            onCancelEdit={() => setEditingId(null)}
+            onRename={(newName) => renameExercise(ex.id!, newName)}
+            onRemove={() => removeExercise(ex.id)}
+          />
         ))}
       </div>
     </>
+  );
+}
+
+function ExerciseRow({
+  exercise,
+  editing,
+  onStartEdit,
+  onCancelEdit,
+  onRename,
+  onRemove,
+}: {
+  exercise: Exercise;
+  editing: boolean;
+  onStartEdit: () => void;
+  onCancelEdit: () => void;
+  onRename: (newName: string) => void;
+  onRemove: () => void;
+}) {
+  const [draft, setDraft] = useState(exercise.name);
+
+  if (editing) {
+    return (
+      <div className="entry-row">
+        <input
+          type="text"
+          value={draft}
+          autoFocus
+          style={{ marginBottom: 0, flex: 1 }}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") onRename(draft);
+            if (e.key === "Escape") onCancelEdit();
+          }}
+        />
+        <div style={{ display: "flex", gap: 6, marginLeft: 8 }}>
+          <button type="button" className="small" onClick={() => onRename(draft)}>
+            Save
+          </button>
+          <button type="button" className="secondary small" onClick={onCancelEdit}>
+            Cancel
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="entry-row">
+      <span>
+        {exercise.name}
+        {exercise.isCoreLift && <span className="tag">core</span>}
+      </span>
+      <div style={{ display: "flex", gap: 6 }}>
+        <button
+          type="button"
+          className="secondary small"
+          onClick={() => {
+            setDraft(exercise.name);
+            onStartEdit();
+          }}
+        >
+          Rename
+        </button>
+        {!exercise.isCoreLift && (
+          <button className="danger" onClick={onRemove}>
+            Remove
+          </button>
+        )}
+      </div>
+    </div>
   );
 }
