@@ -98,11 +98,12 @@ export default function Report() {
 
   const data = useLiveQuery(async () => {
     const today = todayISO();
-    const [allSessions, exercises, sets, cardioEntries] = await Promise.all([
+    const [allSessions, exercises, sets, cardioEntries, bodyWeights] = await Promise.all([
       db.sessions.toArray(),
       db.exercises.toArray(),
       db.sets.toArray(),
       db.cardioEntries.toArray(),
+      db.bodyWeights.orderBy("date").toArray(),
     ]);
 
     const rangeStart =
@@ -185,7 +186,29 @@ export default function Report() {
       cardioByActivity.set(name, (cardioByActivity.get(name) ?? 0) + 1);
     }
 
-    return { consistency, liftReports, cardioMinutes, cardioCount: cardioInRange.length, cardioByActivity };
+    const bodyWeightsInRange = bodyWeights.filter(
+      (bw) => bw.date >= rangeStart && bw.date <= today,
+    );
+    const bodyWeightReport =
+      bodyWeightsInRange.length > 0
+        ? {
+            points: bodyWeightsInRange,
+            first: bodyWeightsInRange[0],
+            last: bodyWeightsInRange[bodyWeightsInRange.length - 1],
+            change:
+              bodyWeightsInRange[bodyWeightsInRange.length - 1].weightLbs -
+              bodyWeightsInRange[0].weightLbs,
+          }
+        : null;
+
+    return {
+      consistency,
+      liftReports,
+      cardioMinutes,
+      cardioCount: cardioInRange.length,
+      cardioByActivity,
+      bodyWeightReport,
+    };
   }, [range]);
 
   return (
@@ -251,6 +274,39 @@ export default function Report() {
               />
             </div>
           </section>
+
+          {data.bodyWeightReport && (
+            <section className="card report-section">
+              <h2>Body Weight</h2>
+              <div className="stat-grid">
+                <Stat label="Entries" value={String(data.bodyWeightReport.points.length)} />
+                <Stat
+                  label="Starting"
+                  value={`${data.bodyWeightReport.first.weightLbs} lb`}
+                  hint={formatDate(data.bodyWeightReport.first.date)}
+                />
+                <Stat
+                  label="Current"
+                  value={`${data.bodyWeightReport.last.weightLbs} lb`}
+                  hint={formatDate(data.bodyWeightReport.last.date)}
+                />
+                <Stat
+                  label="Change"
+                  value={`${data.bodyWeightReport.change >= 0 ? "+" : ""}${data.bodyWeightReport.change.toFixed(1)} lb`}
+                />
+              </div>
+              {data.bodyWeightReport.points.length > 1 && (
+                <Sparkline
+                  points={data.bodyWeightReport.points.map((p) => ({
+                    date: p.date,
+                    value: p.weightLbs,
+                  }))}
+                  formatDate={formatDate}
+                  formatValue={(v) => `${v} lb`}
+                />
+              )}
+            </section>
+          )}
 
           {data.liftReports.length === 0 ? (
             <p className="empty-state">No lifts logged in this period yet.</p>

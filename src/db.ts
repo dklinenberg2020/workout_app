@@ -1,11 +1,12 @@
 import Dexie, { type Table } from "dexie";
-import type { CardioEntry, Exercise, Session, SetEntry } from "./types";
+import type { BodyWeight, CardioEntry, Exercise, Session, SetEntry } from "./types";
 
 class WorkoutDB extends Dexie {
   exercises!: Table<Exercise, number>;
   sessions!: Table<Session, number>;
   sets!: Table<SetEntry, number>;
   cardioEntries!: Table<CardioEntry, number>;
+  bodyWeights!: Table<BodyWeight, number>;
 
   constructor() {
     super("workout-tracker");
@@ -14,6 +15,9 @@ class WorkoutDB extends Dexie {
       sessions: "++id, date, type",
       sets: "++id, sessionId, exerciseId",
       cardioEntries: "++id, sessionId, exerciseId",
+    });
+    this.version(2).stores({
+      bodyWeights: "++id, &date",
     });
   }
 }
@@ -47,6 +51,15 @@ export async function seedExercises() {
       isCoreLift: false,
     })),
   ]);
+}
+
+export async function upsertBodyWeight(date: string, weightLbs: number) {
+  const existing = await db.bodyWeights.where("date").equals(date).first();
+  if (existing) {
+    await db.bodyWeights.update(existing.id!, { weightLbs });
+  } else {
+    await db.bodyWeights.add({ date, weightLbs });
+  }
 }
 
 // Epley formula estimated 1-rep max.

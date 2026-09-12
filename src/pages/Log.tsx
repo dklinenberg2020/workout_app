@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { db, estimate1RM } from "../db";
+import { useSearchParams } from "react-router-dom";
+import { db, estimate1RM, upsertBodyWeight } from "../db";
 import type { ExerciseType } from "../types";
 import { formatDate, todayISO } from "../utils";
 
@@ -12,6 +13,52 @@ export default function Log() {
   const [reps, setReps] = useState("");
   const [duration, setDuration] = useState("");
   const [notes, setNotes] = useState("");
+
+  // A Shortcut on iPhone can deep-link here with today's Health weight
+  // reading pre-filled (e.g. #/?bw=182.4), so logging it is a one-tap Save
+  // instead of typing it in. With HashRouter the query string lives inside
+  // the hash, so it's read via useSearchParams rather than location.search.
+  // This reacts to `searchParams` itself (not a mount-only effect) because
+  // navigating to a new hash on an already-open tab (e.g. the Shortcut
+  // re-triggers the PWA that's still running in the background) is a
+  // same-document navigation that doesn't remount this component.
+  const [searchParams] = useSearchParams();
+  const [bodyWeight, setBodyWeight] = useState("");
+  const [bodyWeightSaved, setBodyWeightSaved] = useState(false);
+
+  useEffect(() => {
+    const prefill = searchParams.get("bw");
+    if (prefill) {
+      setBodyWeight(prefill);
+      setBodyWeightSaved(false);
+      return;
+    }
+    db.bodyWeights
+      .where("date")
+      .equals(date)
+      .first()
+      .then((existing) => {
+        setBodyWeight(existing ? String(existing.weightLbs) : "");
+      });
+    // Deliberately excludes `date`: date changes are handled explicitly by
+    // handleDateChange so they can't race this effect.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
+  async function handleDateChange(newDate: string) {
+    setDate(newDate);
+    setExerciseId("");
+    const existing = await db.bodyWeights.where("date").equals(newDate).first();
+    setBodyWeight(existing ? String(existing.weightLbs) : "");
+    setBodyWeightSaved(false);
+  }
+
+  async function saveBodyWeight(e: React.FormEvent) {
+    e.preventDefault();
+    if (!bodyWeight) return;
+    await upsertBodyWeight(date, Number(bodyWeight));
+    setBodyWeightSaved(true);
+  }
 
   const exercises = useLiveQuery(
     () => db.exercises.where("type").equals(type).sortBy("name"),
@@ -112,10 +159,7 @@ export default function Log() {
           id="date"
           type="date"
           value={date}
-          onChange={(e) => {
-            setDate(e.target.value);
-            setExerciseId("");
-          }}
+          onChange={(e) => handleDateChange(e.target.value)}
         />
 
         <div className="type-toggle">
@@ -220,6 +264,30 @@ export default function Log() {
             </button>
           </form>
         )}
+      </div>
+
+      <div className="card">
+        <form onSubmit={saveBodyWeight}>
+          <label htmlFor="body-weight">Body weight (lb) — {formatDate(date)}</label>
+          <div className="row">
+            <input
+              id="body-weight"
+              type="number"
+              inputMode="decimal"
+              min="0"
+              step="0.1"
+              value={bodyWeight}
+              onChange={(e) => {
+                setBodyWeight(e.target.value);
+                setBodyWeightSaved(false);
+              }}
+              style={{ marginBottom: 0 }}
+            />
+            <button type="submit" disabled={!bodyWeight} style={{ flex: "0 0 auto" }}>
+              {bodyWeightSaved ? "Saved" : "Save"}
+            </button>
+          </div>
+        </form>
       </div>
 
       <h2>{formatDate(date)}</h2>
