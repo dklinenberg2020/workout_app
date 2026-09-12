@@ -5,6 +5,33 @@ import { formatDate } from "../utils";
 import Sparkline from "../components/Sparkline";
 
 export default function Progress() {
+  const [mode, setMode] = useState<"lift" | "bodyweight">("lift");
+
+  return (
+    <>
+      <h1>Progress</h1>
+      <div className="type-toggle">
+        <button
+          type="button"
+          className={mode === "lift" ? "active" : ""}
+          onClick={() => setMode("lift")}
+        >
+          Lifts
+        </button>
+        <button
+          type="button"
+          className={mode === "bodyweight" ? "active" : ""}
+          onClick={() => setMode("bodyweight")}
+        >
+          Body Weight
+        </button>
+      </div>
+      {mode === "lift" ? <LiftProgress /> : <BodyWeightProgress />}
+    </>
+  );
+}
+
+function LiftProgress() {
   const liftExercises = useLiveQuery(() =>
     db.exercises.where("type").equals("strength").sortBy("name"),
   );
@@ -44,7 +71,6 @@ export default function Progress() {
 
   return (
     <>
-      <h1>Progress</h1>
       <div className="card">
         <label htmlFor="exercise">Exercise</label>
         <select
@@ -91,6 +117,40 @@ export default function Progress() {
           </div>
         </>
       )}
+    </>
+  );
+}
+
+function BodyWeightProgress() {
+  const entries = useLiveQuery(() => db.bodyWeights.orderBy("date").toArray());
+
+  if (entries && entries.length === 0) {
+    return <p className="empty-state">No body weight logged yet. Add it on the Log tab.</p>;
+  }
+
+  return (
+    <>
+      {entries && entries.length > 0 && (
+        <div className="card">
+          <Sparkline
+            points={entries.map((e) => ({ date: e.date, value: e.weightLbs }))}
+            formatDate={formatDate}
+            formatValue={(v) => `${v} lb`}
+          />
+          <p className="muted" style={{ textAlign: "center", marginTop: 6 }}>
+            Body weight over time
+          </p>
+        </div>
+      )}
+
+      <div className="card">
+        {[...(entries ?? [])].reverse().map((e) => (
+          <div className="entry-row" key={e.id}>
+            <span>{formatDate(e.date)}</span>
+            <span>{e.weightLbs} lb</span>
+          </div>
+        ))}
+      </div>
     </>
   );
 }

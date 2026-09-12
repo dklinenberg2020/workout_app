@@ -30,3 +30,9 @@ export interface CardioEntry {
   durationMin: number;
   notes?: string;
 }
+
+export interface BodyWeight {
+  id?: number;
+  date: string; // YYYY-MM-DD, one entry per date
+  weightLbs: number;
+}
