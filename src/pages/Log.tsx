@@ -65,6 +65,32 @@ export default function Log() {
     [type],
   );
 
+  // "Last time" hint: what you did on the most recent PRIOR date you logged
+  // this exercise, so you know which dumbbells/weight to grab before you
+  // even add today's first set.
+  const lastTime = useLiveQuery(async () => {
+    if (type !== "strength" || !exerciseId) return null;
+    const priorSets = await db.sets.where("exerciseId").equals(exerciseId).toArray();
+    if (priorSets.length === 0) return null;
+
+    const sessionIds = [...new Set(priorSets.map((s) => s.sessionId))];
+    const sessions = await db.sessions.bulkGet(sessionIds);
+    const dateBySession = new Map(
+      sessions.filter(Boolean).map((s) => [s!.id!, s!.date]),
+    );
+
+    const priorDates = [...new Set(priorSets.map((s) => dateBySession.get(s.sessionId)))]
+      .filter((d): d is string => !!d && d < date)
+      .sort();
+    if (priorDates.length === 0) return null;
+    const lastDate = priorDates[priorDates.length - 1];
+
+    const lastSets = priorSets
+      .filter((s) => dateBySession.get(s.sessionId) === lastDate)
+      .sort((a, b) => a.setNumber - b.setNumber);
+    return { date: lastDate, sets: lastSets };
+  }, [type, exerciseId, date]);
+
   const session = useLiveQuery(
     () => db.sessions.where({ date, type }).first(),
     [date, type],
@@ -200,6 +226,17 @@ export default function Log() {
                 </option>
               ))}
             </select>
+            {exerciseId && lastTime && (
+              <p className="muted" style={{ marginTop: -8, marginBottom: 12 }}>
+                Last time ({formatDate(lastTime.date)}):{" "}
+                {lastTime.sets.map((s) => `${s.weight}×${s.reps}`).join(", ")}
+              </p>
+            )}
+            {exerciseId && !lastTime && (
+              <p className="muted" style={{ marginTop: -8, marginBottom: 12 }}>
+                First time logging this one.
+              </p>
+            )}
             <div className="row">
               <div>
                 <label htmlFor="weight">Weight (lb)</label>
