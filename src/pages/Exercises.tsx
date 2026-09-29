@@ -1,7 +1,17 @@
 import { useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "../db";
+import { PROGRAM_NOTES } from "../program";
 import type { Exercise, ExerciseType } from "../types";
+
+const WEEKDAY_LABELS: [string, string][] = [
+  ["Monday", "Upper Body A"],
+  ["Tuesday", "Lower Body A"],
+  ["Wednesday", "Cardio & Mobility"],
+  ["Thursday", "Upper Body B"],
+  ["Friday", "Lower Body B"],
+  ["Weekend", "Low-impact cardio or rest"],
+];
 
 export default function Exercises() {
   const exercises = useLiveQuery(() => db.exercises.toArray());
@@ -123,6 +133,25 @@ export default function Exercises() {
             onRename={(newName) => renameExercise(ex.id!, newName)}
             onRemove={() => removeExercise(ex.id)}
           />
+        ))}
+      </div>
+
+      <h2>Weekly Schedule</h2>
+      <div className="card">
+        {WEEKDAY_LABELS.map(([day, label]) => (
+          <div className="entry-row" key={day}>
+            <span>{day}</span>
+            <span className="muted">{label}</span>
+          </div>
+        ))}
+      </div>
+
+      <h2>Program Notes</h2>
+      <div className="card">
+        {PROGRAM_NOTES.map((note, i) => (
+          <div className="entry-row" key={i}>
+            <span className="muted">{note}</span>
+          </div>
         ))}
       </div>
     </>

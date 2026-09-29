@@ -2,7 +2,7 @@
 
 A mobile-first PWA for tracking lifts and HIIT sessions — built for a 6-day split (Sat rest, 3 heavy lifting days on the five basic barbell lifts, 3 HIIT days).
 
-Right now this covers the **tracking infrastructure**: logging sets/reps/weight, logging HIIT sessions, workout history, per-lift progress (estimated 1-rep max over time via the Epley formula), and a printable trainer report. The actual weekly schedule from your trainer isn't built in yet — for now you just pick "Lift Heavy" or "HIIT" each day you log.
+It covers the full loop: a trainer-prescribed weekly program that drives a "today's plan" checklist on the Log tab, logging sets/reps/weight and HIIT sessions against it, workout history, per-lift progress (estimated 1-rep max over time via the Epley formula), body weight tracking, and a printable trainer report.
 
 ## Stack
 
@@ -37,6 +37,12 @@ The app is built assuming it's served from `/workout_app/` (see `base` in `vite.
 ## Installing on iPhone
 
 Open the deployed GitHub Pages URL in Safari, tap Share → **Add to Home Screen**. It'll behave like a standalone app and keeps working offline since everything is stored locally on-device.
+
+## Weekly program
+
+`src/program.ts` defines the current program: what each named day (Upper Body A/B, Lower Body A/B) prescribes, and which day of the week maps to which — Mon Upper A, Tue Lower A, Wed Cardio & Mobility, Thu Upper B, Fri Lower B, weekend recovery. The Log tab shows the plan for whichever date is selected as a checklist (sets × target rep range, and how many sets you've already logged today), and tapping an exercise selects it in the logging form below. The Exercises tab has a read-only summary of the weekly schedule and the program's general notes (cardio duration, steps, sleep, protein, water).
+
+There's no in-app editor for the program — when your trainer changes it, that's a code change (same as everything else in this app), not a UI you'd use yourself. The exercise-matching is name-based and tries a few aliases (e.g. a squat slot matches "Squat" or a renamed "Back Squat") so updating the program won't create duplicate exercises alongside ones you've already renamed.
 
 ## Trainer report
 
