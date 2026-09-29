@@ -2,12 +2,19 @@ import { useEffect, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { useSearchParams } from "react-router-dom";
 import { db, estimate1RM, upsertBodyWeight } from "../db";
+import { PROGRAM_DAYS, resolveExerciseId, scheduleFor } from "../program";
 import type { ExerciseType } from "../types";
 import { formatDate, todayISO } from "../utils";
 
 export default function Log() {
   const [date, setDate] = useState(todayISO());
-  const [type, setType] = useState<ExerciseType>("strength");
+  // Defaults to whatever today's schedule suggests (cardio on cardio days,
+  // strength otherwise) — a one-time initial guess, not re-applied when the
+  // date picker changes, so backfilling a different day doesn't yank the
+  // toggle out from under you.
+  const [type, setType] = useState<ExerciseType>(() =>
+    scheduleFor(todayISO()).kind === "cardio" ? "cardio" : "strength",
+  );
   const [exerciseId, setExerciseId] = useState<number | "">("");
   const [weight, setWeight] = useState("");
   const [reps, setReps] = useState("");
@@ -96,6 +103,45 @@ export default function Log() {
     [date, type],
   );
 
+  // Today's (or whatever date is selected) prescribed workout, resolved
+  // against whichever actual exercises exist — independent of the `type`
+  // toggle above, since a plan day is always a strength day but the toggle
+  // might currently be on HIIT.
+  const schedule = scheduleFor(date);
+  const programDay = schedule.kind === "program" ? PROGRAM_DAYS[schedule.day] : null;
+
+  const strengthSession = useLiveQuery(
+    () => db.sessions.where({ date, type: "strength" }).first(),
+    [date],
+  );
+
+  const planStatus = useLiveQuery(async () => {
+    if (!programDay) return null;
+    return Promise.all(
+      programDay.exercises.map(async (pe) => {
+        const id = await resolveExerciseId(pe.candidateNames);
+        // Show whichever name the exercise actually resolved to (e.g. a
+        // renamed "Back Squat"), not just the plan's first candidate name.
+        const resolved = id ? await db.exercises.get(id) : undefined;
+        const displayName = resolved?.name ?? pe.candidateNames[0];
+        const doneSets =
+          id && strengthSession?.id
+            ? await db.sets
+                .where("sessionId")
+                .equals(strengthSession.id)
+                .and((s) => s.exerciseId === id)
+                .count()
+            : 0;
+        return { ...pe, exerciseId: id, displayName, doneSets };
+      }),
+    );
+  }, [programDay?.key, strengthSession?.id]);
+
+  function logPlanExercise(exId: number) {
+    setType("strength");
+    setExerciseId(exId);
+  }
+
   const sets = useLiveQuery(
     () => (session?.id ? db.sets.where("sessionId").equals(session.id).toArray() : []),
     [session?.id],
@@ -178,6 +224,48 @@ export default function Log() {
   return (
     <>
       <h1>Log Workout</h1>
+
+      {programDay && (
+        <div className="card">
+          <h2 style={{ marginTop: 0 }}>
+            {formatDate(date)} · {programDay.label}
+          </h2>
+          {planStatus?.map((pe, i) => (
+            <div
+              className="entry-row"
+              key={i}
+              style={pe.exerciseId ? { cursor: "pointer" } : undefined}
+              onClick={() => pe.exerciseId && logPlanExercise(pe.exerciseId)}
+            >
+              <span>
+                {pe.displayName}
+                {pe.note && <span className="muted"> ({pe.note})</span>}
+              </span>
+              <span>
+                {pe.sets} × {pe.repsLabel} {pe.unit}{" "}
+                <span className="tag">
+                  {pe.doneSets}/{pe.sets}
+                </span>
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {schedule.kind === "cardio" && (
+        <div className="card">
+          <h2 style={{ marginTop: 0 }}>{formatDate(date)} · Cardio &amp; Mobility</h2>
+          <p className="muted">
+            Any cardio machine or calisthenics, 30–45 min. Tap HIIT below to log it.
+          </p>
+        </div>
+      )}
+
+      {schedule.kind === "rest" && (
+        <p className="muted" style={{ textAlign: "center" }}>
+          Recovery day — low-impact cardio or full rest.
+        </p>
+      )}
 
       <div className="card">
         <label htmlFor="date">Date</label>
