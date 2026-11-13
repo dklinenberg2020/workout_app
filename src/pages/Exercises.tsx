@@ -1,17 +1,35 @@
 import { useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "../db";
-import { PROGRAM_NOTES } from "../program";
+import { PROGRAM_DAYS, PROGRAM_NOTES, SCHEDULE, type ScheduleEntry } from "../program";
 import type { Exercise, ExerciseType } from "../types";
 
-const WEEKDAY_LABELS: [string, string][] = [
-  ["Monday", "Upper Body A"],
-  ["Tuesday", "Lower Body A"],
-  ["Wednesday", "Cardio & Mobility"],
-  ["Thursday", "Upper Body B"],
-  ["Friday", "Lower Body B"],
-  ["Weekend", "Low-impact cardio or rest"],
-];
+const WEEKDAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+function scheduleLabel(entry: ScheduleEntry): string {
+  if (entry.kind === "program") return PROGRAM_DAYS[entry.day].label;
+  if (entry.kind === "cardio") return "Cardio & Mobility";
+  return "Low-impact cardio or rest";
+}
+
+// Built from SCHEDULE itself (not a separate hardcoded list) so this can
+// never drift out of sync with what the Log tab actually shows. Weekdays
+// (Mon-Fri) are listed individually; Sat/Sun collapse into one "Weekend"
+// row when they share the same schedule entry, which they do today.
+const WEEKDAY_LABELS: [string, string][] = (() => {
+  const rows: [string, string][] = [1, 2, 3, 4, 5].map((dow) => [
+    WEEKDAY_NAMES[dow],
+    scheduleLabel(SCHEDULE[dow]),
+  ]);
+  const satLabel = scheduleLabel(SCHEDULE[6]);
+  const sunLabel = scheduleLabel(SCHEDULE[0]);
+  if (satLabel === sunLabel) {
+    rows.push(["Weekend", satLabel]);
+  } else {
+    rows.push(["Saturday", satLabel], ["Sunday", sunLabel]);
+  }
+  return rows;
+})();
 
 export default function Exercises() {
   const exercises = useLiveQuery(() => db.exercises.toArray());
