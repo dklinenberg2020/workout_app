@@ -106,8 +106,8 @@ export const SCHEDULE: Record<number, ScheduleEntry> = {
   0: { kind: "rest" },
   1: { kind: "program", day: "upper-a" },
   2: { kind: "program", day: "lower-a" },
-  3: { kind: "cardio" },
-  4: { kind: "program", day: "upper-b" },
+  3: { kind: "program", day: "upper-b" },
+  4: { kind: "cardio" },
   5: { kind: "program", day: "lower-b" },
   6: { kind: "rest" },
 };
